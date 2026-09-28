@@ -99,6 +99,25 @@ src/main/java/com/dfs/
 - Java 21+
 - Maven 3.9+
 
+### Quick demo (one command, one terminal)
+
+```bash
+./start.sh        # macOS/Linux
+.\start.ps1        # Windows (PowerShell)
+```
+
+(Or, without the script: `mvn compile exec:java` — the main class defaults
+to the demo runner via the `exec-maven-plugin` config in `pom.xml`.)
+
+This boots the metadata server and all 4 storage nodes in a single JVM, waits
+for them to report healthy, then runs a scripted walkthrough: creates a
+sample file, uploads it, lists it, downloads it, verifies the SHA-256 hash
+matches, deletes it, and shuts everything down. Nothing to remember, nothing
+manual — good for demos or a quick sanity check that the system still works.
+
+For the full multi-process setup (separate terminals per node, manual CLI
+commands), see below.
+
 ### 1. Build
 
 ```bash
