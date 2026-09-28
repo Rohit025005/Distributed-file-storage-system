@@ -42,6 +42,12 @@ public class Main {
 
         Config config = Config.loadFromFile("config/nodes.yaml");
 
+        System.out.println("== starting metadata server (port 9090) ==");
+        HealthMonitor monitor = new HealthMonitor(config.getNodeAddresses());
+        Store store = new Store("./data/metadata.db");
+        MetadataHandlers metaHandlers = new MetadataHandlers(store, config.getNodeAddresses(), monitor);
+        HttpServer metadataServer = startMetadataServer(metaHandlers);
+
         System.out.println("== starting 4 storage nodes (ports 8081-8084) ==");
         List<HttpServer> storageServers = List.of(
             startStorageNode("node1", 8081),
@@ -50,19 +56,13 @@ public class Main {
             startStorageNode("node4", 8084)
         );
 
-        System.out.println("== starting metadata server (port 9090) ==");
-        HealthMonitor monitor = new HealthMonitor(config.getNodeAddresses());
-        Store store = new Store("./data/metadata.db");
-        MetadataHandlers metaHandlers = new MetadataHandlers(store, config.getNodeAddresses(), monitor);
-        HttpServer metadataServer = startMetadataServer(metaHandlers);
-
         try {
             awaitHealthy("http://localhost:9090/health");
             for (String addr : config.getNodeAddresses()) {
                 awaitHealthy("http://" + addr + "/health");
             }
+            // start monitoring only after nodes are up, else it marks them DOWN for 10s
             monitor.start(10);
-            awaitMonitorSeesAllUp(monitor, config.getNodeAddresses());
             System.out.println("== all nodes up, running walkthrough ==\n");
 
             runWalkthrough();
@@ -220,18 +220,6 @@ public class Main {
             Thread.sleep(150);
         }
         throw new IllegalStateException("Timed out waiting for " + healthUrl);
-    }
-
-    private static void awaitMonitorSeesAllUp(HealthMonitor monitor, List<String> addresses)
-            throws InterruptedException {
-        for (int attempt = 0; attempt < 40; attempt++) {
-            if (monitor.liveOnly(addresses).size() == addresses.size()) {
-                return;
-            }
-            Thread.sleep(150);
-        }
-        throw new IllegalStateException(
-            "Health monitor still reports nodes down: " + monitor.downOnly(addresses));
     }
 
     private static String sha256(Path path) throws Exception {
